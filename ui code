@@ -1,0 +1,106 @@
+import tkinter as tk
+from tkinter import ttk, messagebox
+import csv
+import os
+
+FILENAME = "balance_sheet_history.csv"
+
+# Ensure CSV exists
+if not os.path.exists(FILENAME):
+    with open(FILENAME, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Category", "Type", "Name", "Amount"])
+
+# Valid types
+VALID_TYPES = ["Current", "Fixed", "Short-term", "Long-term"]
+
+# Save transaction to CSV
+def save_transaction(category, t_type, name, amount):
+    with open(FILENAME, "a", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow([category, t_type, name, amount])
+
+# Add transaction from UI
+def add_transaction():
+    category = category_var.get()
+    t_type = type_var.get()
+    name = name_entry.get().strip()
+    try:
+        amount = float(amount_entry.get())
+        if amount < 0 or amount > 1_000_000:
+            raise ValueError
+    except ValueError:
+        messagebox.showerror("Invalid Input", "Enter a valid amount (0-1,000,000).")
+        return
+    if category not in ["Asset", "Liability"] or t_type not in VALID_TYPES or not name:
+        messagebox.showerror("Invalid Input", "Please fill all fields correctly.")
+        return
+
+    save_transaction(category, t_type, name, amount)
+    messagebox.showinfo("Success", f"{category} '{name}' added!")
+    update_table()
+
+    # Clear entries
+    name_entry.delete(0, tk.END)
+    amount_entry.delete(0, tk.END)
+
+# Load CSV and display in table
+def update_table():
+    for row in tree.get_children():
+        tree.delete(row)
+    total_assets = 0
+    total_liabilities = 0
+    with open(FILENAME, "r") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            tree.insert("", tk.END, values=(row["Category"], row["Type"], row["Name"], row["Amount"]))
+            if row["Category"] == "Asset":
+                total_assets += float(row["Amount"])
+            else:
+                total_liabilities += float(row["Amount"])
+    equity = total_assets - total_liabilities
+    balance_label.config(text=f"Total Assets: ${total_assets:,.2f} | Total Liabilities: ${total_liabilities:,.2f} | Equity: ${equity:,.2f}")
+
+# UI Setup
+root = tk.Tk()
+root.title("Professional Mini Balance Sheet")
+root.geometry("700x500")
+
+# Input Frame
+frame = tk.Frame(root)
+frame.pack(pady=10)
+
+tk.Label(frame, text="Category:").grid(row=0, column=0, padx=5)
+category_var = tk.StringVar(value="Asset")
+tk.OptionMenu(frame, category_var, "Asset", "Liability").grid(row=0, column=1, padx=5)
+
+tk.Label(frame, text="Type:").grid(row=0, column=2, padx=5)
+type_var = tk.StringVar(value="Current")
+tk.OptionMenu(frame, type_var, *VALID_TYPES).grid(row=0, column=3, padx=5)
+
+tk.Label(frame, text="Name:").grid(row=1, column=0, padx=5)
+name_entry = tk.Entry(frame)
+name_entry.grid(row=1, column=1, padx=5)
+
+tk.Label(frame, text="Amount:").grid(row=1, column=2, padx=5)
+amount_entry = tk.Entry(frame)
+amount_entry.grid(row=1, column=3, padx=5)
+
+tk.Button(frame, text="Add Transaction", command=add_transaction).grid(row=2, column=0, columnspan=4, pady=10)
+
+# Table Frame
+tree = ttk.Treeview(root, columns=("Category", "Type", "Name", "Amount"), show="headings")
+tree.heading("Category", text="Category")
+tree.heading("Type", text="Type")
+tree.heading("Name", text="Name")
+tree.heading("Amount", text="Amount")
+tree.pack(expand=True, fill="both", pady=10)
+
+# Balance Label
+balance_label = tk.Label(root, text="Total Assets: $0.00 | Total Liabilities: $0.00 | Equity: $0.00", font=("Arial", 12, "bold"))
+balance_label.pack(pady=10)
+
+# Initial table load
+update_table()
+
+root.mainloop()
