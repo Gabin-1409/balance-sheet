@@ -1,0 +1,87 @@
+import csv
+import os
+
+FILENAME = "balance_sheet_history.csv"
+
+# Ensure CSV exists
+if not os.path.exists(FILENAME):
+    with open(FILENAME, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Category", "Type", "Name", "Amount"])
+
+def input_items(category_name):
+    """
+    Input multiple items with type and amount.
+    Category: 'Asset' or 'Liability'
+    Type: Current, Fixed, Short-term, Long-term
+    """
+    print(f"\nEnter your {category_name}s (type 'done' when finished):")
+    items = []
+    valid_types = ["Current", "Fixed", "Short-term", "Long-term"]
+    while True:
+        name = input(f"Name of {category_name}: ").strip()
+        if name.lower() == "done":
+            break
+        t_type = input(f"Type ({'/'.join(valid_types)}): ").strip()
+        while t_type not in valid_types:
+            t_type = input(f"Invalid. Type must be one of {valid_types}: ").strip()
+        try:
+            amount = float(input("Amount (0-1,000,000): "))
+            if amount < 0 or amount > 1_000_000:
+                print("Enter a reasonable positive number up to 1,000,000.")
+                continue
+        except ValueError:
+            print("Invalid input. Enter a number.")
+            continue
+        items.append({"Category": category_name, "Type": t_type, "Name": name, "Amount": amount})
+        # Save to CSV immediately
+        with open(FILENAME, "a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow([category_name, t_type, name, amount])
+        print(f"{category_name} '{name}' added!\n")
+    return items
+
+def calculate_totals(items):
+    total = sum(item["Amount"] for item in items)
+    by_type = {}
+    for item in items:
+        by_type.setdefault(item["Type"], 0)
+        by_type[item["Type"]] += item["Amount"]
+    return total, by_type
+
+def print_balance_sheet(assets, liabilities):
+    total_assets, assets_by_type = calculate_totals(assets)
+    total_liabilities, liabilities_by_type = calculate_totals(liabilities)
+    equity = total_assets - total_liabilities
+
+    print("\n=== Professional Mini Balance Sheet ===")
+    print("\nASSETS:")
+    for item in assets:
+        print(f"  [{item['Type']}] {item['Name']}: ${item['Amount']:,.2f}")
+    print("Totals by Type:")
+    for t, amt in assets_by_type.items():
+        print(f"  {t}: ${amt:,.2f}")
+    print(f"Total Assets: ${total_assets:,.2f}")
+
+    print("\nLIABILITIES:")
+    for item in liabilities:
+        print(f"  [{item['Type']}] {item['Name']}: ${item['Amount']:,.2f}")
+    print("Totals by Type:")
+    for t, amt in liabilities_by_type.items():
+        print(f"  {t}: ${amt:,.2f}")
+    print(f"Total Liabilities: ${total_liabilities:,.2f}")
+
+    print("\nEQUITY:")
+    print(f"  Owner's Equity: ${equity:,.2f}")
+
+def main():
+    print("Welcome to Professional Mini Balance Sheet")
+    assets = input_items("Asset")
+    liabilities = input_items("Liability")
+    if sum(item["Amount"] for item in liabilities) > sum(item["Amount"] for item in assets):
+        print("\nWarning: Total Liabilities exceed Assets!")
+    print_balance_sheet(assets, liabilities)
+    print(f"\nBalance sheet saved to '{FILENAME}' for tracking history.")
+
+if __name__ == "__main__":
+    main()
